@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 pragma solidity 0.8.3;
 
@@ -32,8 +33,9 @@ contract GatewayCryptoDao {
         bool voteFor;
     }
     
-    constructor(uint256 _quorum, address[] memory _members) {
+    constructor(uint256 _quorum, uint256 _proposalTimeWindow, address[] memory _members) {
         quorum = _quorum;
+        proposalTimeWindow = _proposalTimeWindow;
         for(uint256 i=0; i<_members.length; i++) {
             _updateMembership(_members[i], false);
         }
@@ -91,6 +93,7 @@ contract GatewayCryptoDao {
                 }
             }
         }
+        proposal.executed = true;
     }
     
     function _updateMembership(address _member, bool _kick) internal {
