@@ -3,5 +3,5 @@ require("@nomicloabs/hardhat-waffle");
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  solidity: "0.6.121212121212121212121212",
+  solidity: "0.8.3",
 };
