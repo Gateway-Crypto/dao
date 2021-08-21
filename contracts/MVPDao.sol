@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 pragma solidity 0.8.3;
 
@@ -8,6 +8,7 @@ contract GatewayCryptoDao {
     uint256 public memberCount;
     uint256 public proposalCount;
     uint256 public proposalTimeWindow;
+    uint256 public quorum; // representated as decimal x 10000
     mapping(address => bool) public isMember;
     mapping(uint256 => Proposal) public proposals;
     
@@ -29,6 +30,13 @@ contract GatewayCryptoDao {
     struct Vote {
         bool didVote;
         bool voteFor;
+    }
+    
+    constructor(uint256 _quorum, address[] memory _members) {
+        quorum = _quorum;
+        for(uint256 i=0; i<_members.length; i++) {
+            _updateMembership(_members[i], false);
+        }
     }
     
     function submitProposal(
@@ -73,7 +81,26 @@ contract GatewayCryptoDao {
         require(!proposal.executed, "Vote already executed");
         
         if(proposal.votesFor > proposal.votesAgainst && (proposal.votesFor + proposal.votesAgainst) * 10000 / memberCount >= quorum) {
-            if(proposal.member != address(0))
+            if(proposal.member != address(0)) {
+                _updateMembership(proposal.member, proposal.kick);
+            }
+            
+            if(proposal.token != address(0) && proposal.beneficiary != address(0) && proposal.amount > 0) {
+                if(IERC20(proposal.token).balanceOf(address(this)) >= proposal.amount) {
+                    IERC20(proposal.token).transfer(proposal.beneficiary, proposal.amount);
+                }
+            }
+        }
+    }
+    
+    function _updateMembership(address _member, bool _kick) internal {
+        require(_member != address(0));
+        if(_kick && isMember[_member]) {
+            isMember[_member] = false;
+            memberCount--;
+        } else if(!_kick && !isMember[_member]) {
+            isMember[_member] = true;
+            memberCount++;
         }
     }
     
