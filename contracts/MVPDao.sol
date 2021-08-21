@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 pragma solidity 0.8.3;
 
@@ -33,6 +32,42 @@ contract GatewayCryptoDao {
         bool voteFor;
     }
     
+    event NewProposalSubmitted (
+        uint256 proposalId,
+        address proposer,
+        address token,
+        uint256 amount, 
+        address beneficiary,
+        address member,
+        bool kick
+    );
+    
+    event VoteSubmitted (
+        address member,
+        uint256 proposalId,
+        bool voteFor
+    );
+    
+    event VoteExecuted (
+        address executor,
+        uint256 proposalId
+    );
+    
+    event MemberAdded (
+        address newMember
+    );
+    
+    event MemberRemoved (
+        address oldMember
+    );
+    
+    event TokensTransferred (
+        address token,
+        address beneficiary,
+        uint256 amount
+    );
+        
+    
     constructor(uint256 _quorum, uint256 _proposalTimeWindow, address[] memory _members) {
         quorum = _quorum;
         proposalTimeWindow = _proposalTimeWindow;
@@ -60,6 +95,16 @@ contract GatewayCryptoDao {
         proposal.beneficiary = _beneficiary;
         proposal.member = _member;
         proposal.kick = _kick;
+        
+        emit NewProposalSubmitted (
+            proposalCount,
+            msg.sender,
+            _token,
+            _amount,
+            _beneficiary,
+            _member,
+            _kick
+        );
     }
     
     function vote(uint256 _proposalId, bool _voteFor) public {
@@ -90,6 +135,7 @@ contract GatewayCryptoDao {
             if(proposal.token != address(0) && proposal.beneficiary != address(0) && proposal.amount > 0) {
                 if(IERC20(proposal.token).balanceOf(address(this)) >= proposal.amount) {
                     IERC20(proposal.token).transfer(proposal.beneficiary, proposal.amount);
+                    emit TokensTransferred(proposal.token, proposal.beneficiary, proposal.amount);
                 }
             }
         }
@@ -101,12 +147,11 @@ contract GatewayCryptoDao {
         if(_kick && isMember[_member]) {
             isMember[_member] = false;
             memberCount--;
+            emit MemberRemoved(_member);
         } else if(!_kick && !isMember[_member]) {
             isMember[_member] = true;
             memberCount++;
+            emit MemberAdded(_member);
         }
     }
-    
-
-    
 }
