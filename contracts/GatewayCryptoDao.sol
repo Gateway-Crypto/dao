@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 pragma solidity 0.8.3;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract GatewayCryptoDao {
     uint256 public memberCount;
@@ -11,7 +11,7 @@ contract GatewayCryptoDao {
     uint256 public quorum; // representated as decimal x 10000
     mapping(address => bool) public isMember;
     mapping(uint256 => Proposal) public proposals;
-    
+
     struct Proposal {
         address proposer;
         uint256 deadline;
@@ -26,56 +26,55 @@ contract GatewayCryptoDao {
         mapping(address => Vote) votes;
         bool executed;
     }
-    
+
     struct Vote {
         bool didVote;
         bool voteFor;
     }
-    
+
     event NewProposalSubmitted (
         uint256 proposalId,
         address proposer,
         address token,
-        uint256 amount, 
+        uint256 amount,
         address beneficiary,
         address member,
         bool kick
     );
-    
+
     event VoteSubmitted (
         address member,
         uint256 proposalId,
         bool voteFor
     );
-    
+
     event VoteExecuted (
         address executor,
         uint256 proposalId
     );
-    
+
     event MemberAdded (
         address newMember
     );
-    
+
     event MemberRemoved (
         address oldMember
     );
-    
+
     event TokensTransferred (
         address token,
         address beneficiary,
         uint256 amount
     );
-        
-    
+
     constructor(uint256 _quorum, uint256 _proposalTimeWindow, address[] memory _members) {
         quorum = _quorum;
         proposalTimeWindow = _proposalTimeWindow;
-        for(uint256 i=0; i<_members.length; i++) {
+        for (uint256 i=0; i<_members.length; i++) {
             _updateMembership(_members[i], false);
         }
     }
-    
+
     function submitProposal(
         string calldata _details,
         address _token,
@@ -95,7 +94,7 @@ contract GatewayCryptoDao {
         proposal.beneficiary = _beneficiary;
         proposal.member = _member;
         proposal.kick = _kick;
-        
+
         emit NewProposalSubmitted (
             proposalCount,
             msg.sender,
@@ -106,13 +105,13 @@ contract GatewayCryptoDao {
             _kick
         );
     }
-    
+
     function vote(uint256 _proposalId, bool _voteFor) public {
         require(isMember[msg.sender], "Only member can vote");
         Proposal storage proposal = proposals[_proposalId];
         require(block.timestamp < proposal.deadline, "Vote period already expired");
         require(!proposal.votes[msg.sender].didVote, "Address already voted");
-        if( _voteFor) {
+        if (_voteFor) {
             proposal.votesFor++;
         } else {
             proposal.votesAgainst++;
@@ -120,18 +119,19 @@ contract GatewayCryptoDao {
         proposal.votes[msg.sender].didVote = true;
         proposal.votes[msg.sender].voteFor = _voteFor;
     }
-    
+
     function executeVote(uint256 _proposalId) public {
         require(isMember[msg.sender], "Only member can execute vote");
         Proposal storage proposal = proposals[_proposalId];
-        require(block.timestamp > proposal.deadline || proposal.votesFor + proposal.votesAgainst >= memberCount, "Vote period must expire or everyone must vote to execute vote");
+        require(block.timestamp > proposal.deadline || proposal.votesFor + proposal.votesAgainst >= memberCount,
+          "Vote period must expire or everyone must vote to execute vote");
         require(!proposal.executed, "Vote already executed");
-        
+
         if(proposal.votesFor > proposal.votesAgainst && (proposal.votesFor + proposal.votesAgainst) * 10000 / memberCount >= quorum) {
             if(proposal.member != address(0)) {
                 _updateMembership(proposal.member, proposal.kick);
             }
-            
+
             if(proposal.token != address(0) && proposal.beneficiary != address(0) && proposal.amount > 0) {
                 if(IERC20(proposal.token).balanceOf(address(this)) >= proposal.amount) {
                     IERC20(proposal.token).transfer(proposal.beneficiary, proposal.amount);
@@ -141,7 +141,7 @@ contract GatewayCryptoDao {
         }
         proposal.executed = true;
     }
-    
+
     function _updateMembership(address _member, bool _kick) internal {
         require(_member != address(0));
         if(_kick && isMember[_member]) {
